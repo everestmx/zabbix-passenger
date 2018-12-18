@@ -51,9 +51,8 @@ func read_xml() *xmlpath.Node {
 
 	// Check version
 	version_path := xmlpath.MustCompile("/info/@version")
-	if version, ok := version_path.String(xmlData);
-
-		!ok || (version != "3" && version != "2") {
+	
+	if version, ok := version_path.String(xmlData); !ok || (version != "3" && version != "2") {
 		log.Fatal("Unsupported Passenger version (xml version ", version, ")")
 	}
 
