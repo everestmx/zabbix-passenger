@@ -5,6 +5,8 @@ import (
 	"encoding/xml"
 	"fmt"
 	"golang.org/x/net/html/charset"
+	"gopkg.in/alecthomas/kingpin.v2"
+	"gopkg.in/xmlpath.v2"
 	"log"
 	"os"
 	"os/exec"
@@ -51,7 +53,7 @@ func read_xml() *xmlpath.Node {
 
 	// Check version
 	version_path := xmlpath.MustCompile("/info/@version")
-	
+
 	if version, ok := version_path.String(xmlData); !ok || (version != "3" && version != "2") {
 		log.Fatal("Unsupported Passenger version (xml version ", version, ")")
 	}
@@ -110,6 +112,7 @@ func print_discovery_json() {
 var (
 	app       = kingpin.New("zabbix-passenger", "A utility to parse passenger-status output for usage with Zabbix")
 	path      = app.Flag("app", "UUID of application (leave out for global value)").String()
+	version   = app.Command("version", "Version of passenger application")
 	discovery = app.Command("discovery", "Get list of application groups in JSON format (for LLD)")
 	queue     = app.Command("queue", "Get number of requests in queue, optionally specify app with --app")
 	capacity  = app.Command("capacity", "Get global capacity used, optionally specify app with --app")
@@ -120,29 +123,29 @@ func main() {
 	app.Version(VERSION)
 
 	switch kingpin.MustParse(app.Parse(os.Args[1:])) {
+		case discovery.FullCommand():
+			print_discovery_json()
 
-	case discovery.FullCommand():
-		print_discovery_json()
+		case queue.FullCommand():
+			if *path != "" {
+				print_simple_selector(fmt.Sprintf("//group[uuid='%v']/get_wait_list_size", *path))
+			} else {
+				print_simple_selector("//info/get_wait_list_size")
+			}
 
-	case queue.FullCommand():
-		if *path != "" {
-			print_simple_selector(fmt.Sprintf("//group[uuid='%v']/get_wait_list_size", *path))
-		} else {
-			print_simple_selector("//info/get_wait_list_size")
-		}
+		case capacity.FullCommand():
+			if *path != "" {
+				print_simple_selector(fmt.Sprintf("//group[uuid='%v']/capacity_used", *path))
+			} else {
+				print_simple_selector("//info/capacity_used")
+			}
 
-	case capacity.FullCommand():
-		if *path != "" {
-			print_simple_selector(fmt.Sprintf("//group[uuid='%v']/capacity_used", *path))
-		} else {
-			print_simple_selector("//info/capacity_used")
-		}
+		case sessions.FullCommand():
+			if *path != "" {
+				print_selector_sum(fmt.Sprintf("//group[uuid='%v']/processes/process/sessions", *path))
+			}
 
-	case sessions.FullCommand():
-		if *path != "" {
-			print_selector_sum(fmt.Sprintf("//group[uuid='%v']/processes/process/sessions", *path))
-		} else {
-			print_selector_sum(fmt.Sprintf("//group/processes/process/sessions", *path))
-		}
+		case version.FullCommand():
+			print_simple_selector("//info/passenger_version")
 	}
 }
