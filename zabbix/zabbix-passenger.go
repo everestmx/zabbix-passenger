@@ -5,8 +5,6 @@ import (
 	"encoding/xml"
 	"fmt"
 	"golang.org/x/net/html/charset"
-	"gopkg.in/alecthomas/kingpin.v2"
-	"gopkg.in/xmlpath.v2"
 	"log"
 	"os"
 	"os/exec"
@@ -17,13 +15,13 @@ const (
 	VERSION = "1.0.2"
 )
 
-func read_xml() * xmlpath.Node {
+func read_xml() *xmlpath.Node {
 	path, err := exec.LookPath("passenger-status")
 
 	if err != nil {
 		// passenger-status not found in path
 		if _, err := os.Stat("/usr/local/rvm/wrappers/default/passenger-status");
-		err == nil {
+			err == nil {
 			// default rvm wrapper exists so use that!
 			path = "/usr/local/rvm/wrappers/default/passenger-status"
 		}
@@ -37,7 +35,7 @@ func read_xml() * xmlpath.Node {
 	}
 
 	if err := cmd.Start();
-	err != nil {
+		err != nil {
 		log.Fatal(err)
 	}
 
@@ -55,7 +53,7 @@ func read_xml() * xmlpath.Node {
 	version_path := xmlpath.MustCompile("/info/@version")
 	if version, ok := version_path.String(xmlData);
 
-	!ok || (version != "3" && version != "2") {
+		!ok || (version != "3" && version != "2") {
 		log.Fatal("Unsupported Passenger version (xml version ", version, ")")
 	}
 
@@ -65,7 +63,7 @@ func read_xml() * xmlpath.Node {
 func print_simple_selector(pathString string) {
 	path := xmlpath.MustCompile(pathString)
 
-	if value, ok := path.String(read_xml());ok {
+	if value, ok := path.String(read_xml()); ok {
 		fmt.Println(value)
 	}
 }
@@ -79,7 +77,7 @@ func print_selector_sum(pathString string) {
 
 	for iter.Next() {
 		if intVal, err := strconv.Atoi(iter.Node().String());
-		err == nil {
+			err == nil {
 			sum = sum + intVal
 		}
 	}
@@ -88,64 +86,64 @@ func print_selector_sum(pathString string) {
 }
 
 func print_discovery_json() {
-	groupPath		:= xmlpath.MustCompile("//supergroup/group")
-	uuidPath		:= xmlpath.MustCompile("uuid")
-	namePath		:= xmlpath.MustCompile("name")
-	group_iter	:= groupPath.Iter(read_xml())
+	groupPath := xmlpath.MustCompile("//supergroup/group")
+	uuidPath := xmlpath.MustCompile("uuid")
+	namePath := xmlpath.MustCompile("name")
+	group_iter := groupPath.Iter(read_xml())
 
-	var entries[] map[string] string
+	var entries [] map[string]string
 
 	for group_iter.Next() {
 		uuid, ok1 := uuidPath.String(group_iter.Node())
 		name, ok2 := namePath.String(group_iter.Node())
 
 		if ok1 && ok2 {
-			entries = append(entries, map[string] string {"{#UUID}": uuid, "{#NAME}": name})
+			entries = append(entries, map[string]string{"{#UUID}": uuid, "{#NAME}": name})
 		}
 	}
 
-	data := map[string][] map[string] string {"data": entries}
+	data := map[string][] map[string]string{"data": entries}
 
 	json, _ := json.Marshal(data)
 	fmt.Println(string(json))
 }
 
 var (
-	app						= kingpin.New("zabbix-passenger", "A utility to parse passenger-status output for usage with Zabbix")
-	path 					= app.Flag("app", "UUID of application (leave out for global value)").String()
-	discovery 		= app.Command("discovery", "Get list of application groups in JSON format (for LLD)")
-	queue 				= app.Command("queue", "Get number of requests in queue, optionally specify app with --app")
-	capacity 			= app.Command("capacity", "Get global capacity used, optionally specify app with --app")
-	sessions 			= app.Command("sessions", "Get number of sessions, optionally specify app with --app")
+	app       = kingpin.New("zabbix-passenger", "A utility to parse passenger-status output for usage with Zabbix")
+	path      = app.Flag("app", "UUID of application (leave out for global value)").String()
+	discovery = app.Command("discovery", "Get list of application groups in JSON format (for LLD)")
+	queue     = app.Command("queue", "Get number of requests in queue, optionally specify app with --app")
+	capacity  = app.Command("capacity", "Get global capacity used, optionally specify app with --app")
+	sessions  = app.Command("sessions", "Get number of sessions, optionally specify app with --app")
 )
 
 func main() {
 	app.Version(VERSION)
 
-	switch kingpin.MustParse(app.Parse(os.Args[1: ])) {
+	switch kingpin.MustParse(app.Parse(os.Args[1:])) {
 
-		case discovery.FullCommand():
-				print_discovery_json()
+	case discovery.FullCommand():
+		print_discovery_json()
 
-		case queue.FullCommand():
-				if *path != "" {
-						print_simple_selector(fmt.Sprintf("//group[uuid='%v']/get_wait_list_size", *path))
-				} else {
-						print_simple_selector("//info/get_wait_list_size")
-				}
-
-		case capacity.FullCommand():
-				if *path != "" {
-						print_simple_selector(fmt.Sprintf("//group[uuid='%v']/capacity_used", *path))
-				} else {
-						print_simple_selector("//info/capacity_used")
-				}
-
-		case sessions.FullCommand():
-				if *path != "" {
-						print_selector_sum(fmt.Sprintf("//group[uuid='%v']/processes/process/sessions", *path))
-				} else {
-						print_selector_sum(fmt.Sprintf("//group/processes/process/sessions", *path))
-				}
+	case queue.FullCommand():
+		if *path != "" {
+			print_simple_selector(fmt.Sprintf("//group[uuid='%v']/get_wait_list_size", *path))
+		} else {
+			print_simple_selector("//info/get_wait_list_size")
 		}
+
+	case capacity.FullCommand():
+		if *path != "" {
+			print_simple_selector(fmt.Sprintf("//group[uuid='%v']/capacity_used", *path))
+		} else {
+			print_simple_selector("//info/capacity_used")
+		}
+
+	case sessions.FullCommand():
+		if *path != "" {
+			print_selector_sum(fmt.Sprintf("//group[uuid='%v']/processes/process/sessions", *path))
+		} else {
+			print_selector_sum(fmt.Sprintf("//group/processes/process/sessions", *path))
+		}
+	}
 }
